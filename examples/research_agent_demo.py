@@ -1,76 +1,95 @@
-"""Demo script for Research Agent."""
+"""Demo: Research agent using ReAct + tools."""
 
 import asyncio
-from src.agents.base import BaseAgent, AgentResult
-from typing import Dict, Any, List
+import os
+from src.agents.react_agent import ReActAgent
+from src.agents.planner_agent import PlannerAgent
+from src.tools.web_search import WebSearchTool
+from src.tools.calculator import CalculatorTool
+from src.tools.python_repl import PythonREPLTool
 
 
-class ResearchAgent(BaseAgent):
-    """Agent that researches topics using web search and summarization."""
+async def demo_react_agent():
+    """Demo ReAct agent with tools."""
+    print("\n" + "="*60)
+    print("ReAct Agent Demo")
+    print("="*60)
     
-    def __init__(self):
-        super().__init__(name="ResearchAgent", llm_model="gpt-4-turbo")
+    # Create agent
+    agent = ReActAgent(
+        name="ResearchAgent",
+        temperature=0.0,
+        max_iterations=10
+    )
     
-    async def run(self, task: str, **kwargs) -> AgentResult:
-        """Execute research task."""
-        print(f"🔍 Starting research on: {task}")
-        
-        # Step 1: Plan the research
-        steps = await self.plan(task)
-        print(f"📋 Research plan created: {len(steps)} steps")
-        
-        # Step 2: Execute each step
-        results = []
-        for i, step in enumerate(steps, 1):
-            print(f"⚙️  Executing step {i}/{len(steps)}: {step}")
-            result = await self.execute_step(step)
-            results.append(result)
-        
-        # Step 3: Synthesize findings
-        print("📝 Synthesizing research findings...")
-        answer = self._synthesize_results(results)
-        
-        return AgentResult(
-            answer=answer,
-            steps=results,
-            sources=["https://example.com/source1", "https://example.com/source2"],
-            cost=0.15,
-            duration=45.2
-        )
+    # Register tools
+    agent.register_tools([
+        WebSearchTool(max_results=3),
+        CalculatorTool(),
+        PythonREPLTool()
+    ])
     
-    def _synthesize_results(self, results: List[Dict[str, Any]]) -> str:
-        """Combine research results into a coherent summary."""
-        return """
-        Based on extensive research, here are the key findings:
+    # Example tasks
+    tasks = [
+        "What is the current population of Tokyo? Calculate how many people that is per square kilometer if Tokyo is 2,194 km².",
+        "Search for the latest news about GPT-4 and summarize the top 3 results.",
+    ]
+    
+    for i, task in enumerate(tasks, 1):
+        print(f"\n{'='*60}")
+        print(f"Task {i}: {task}")
+        print("="*60)
         
-        1. LLM agents are autonomous systems that can plan and execute tasks
-        2. They use tools to interact with external systems
-        3. Memory systems help agents maintain context across interactions
-        4. Multi-agent collaboration enables complex problem solving
+        result = await agent.run(task, verbose=True)
         
-        Recent developments include improved reasoning capabilities and 
-        more sophisticated tool use patterns.
-        """
+        print(f"\n{'='*60}")
+        print(f"Final Answer:")
+        print(f"{'='*60}")
+        print(result.answer)
+        print(f"\nSteps taken: {len(result.steps)}")
+        print(f"Duration: {result.duration:.2f}s")
+        print(f"Success: {result.success}")
+
+
+async def demo_planner_agent():
+    """Demo planner agent."""
+    print("\n" + "="*60)
+    print("Planner Agent Demo")
+    print("="*60)
+    
+    planner = PlannerAgent(name="Planner", temperature=0.2)
+    
+    task = "Build a machine learning model to predict house prices"
+    
+    print(f"\nTask: {task}\n")
+    
+    result = await planner.run(task)
+    
+    print(result.answer)
+    print(f"\nDuration: {result.duration:.2f}s")
 
 
 async def main():
-    """Run research agent demo."""
-    agent = ResearchAgent()
+    """Run all demos."""
+    # Check for API key
+    if not os.getenv("OPENAI_API_KEY"):
+        print("ERROR: Please set OPENAI_API_KEY environment variable")
+        return
     
-    # Example research task
-    task = "Research the latest developments in LLM agents and summarize key findings"
+    print("\n" + "╔" + "="*58 + "╗")
+    print("║" + " "*15 + "AUTONOMOUS AGENT DEMOS" + " "*21 + "║")
+    print("╚" + "="*58 + "╝")
     
-    result = await agent.run(task)
+    # Demo 1: Planner
+    await demo_planner_agent()
+    
+    # Demo 2: ReAct agent
+    await demo_react_agent()
     
     print("\n" + "="*60)
-    print("RESEARCH RESULTS")
+    print("All demos complete!")
     print("="*60)
-    print(result.answer)
-    print(f"\nTotal cost: ${result.cost:.2f}")
-    print(f"Duration: {result.duration:.1f}s")
-    print(f"Sources: {len(result.sources)}")
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-
